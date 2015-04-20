@@ -2,7 +2,7 @@
  * Copyright 2014 Drifty Co.
  * http://drifty.com/
  *
- * Ionic, v1.0.0-rc.3
+ * Ionic, v1.0.0-rc.1
  * A powerful HTML5 mobile app framework.
  * http://ionicframework.com/
  *
@@ -2354,8 +2354,7 @@ IonicModule
   '$ionicTemplateLoader',
   '$q',
   '$log',
-  '$ionicClickBlock',
-function($rootScope, $ionicBody, $compile, $timeout, $ionicPlatform, $ionicTemplateLoader, $q, $log, $ionicClickBlock) {
+function($rootScope, $ionicBody, $compile, $timeout, $ionicPlatform, $ionicTemplateLoader, $q, $log) {
 
   /**
    * @ngdoc controller
@@ -2419,11 +2418,6 @@ function($rootScope, $ionicBody, $compile, $timeout, $ionicPlatform, $ionicTempl
         $ionicBody.append(self.el);
       }
 
-      // if modal was closed while the keyboard was up, reset scroll view on
-      // next show since we can only resize it once it's visible
-      var scrollCtrl = modalEl.data('$$ionicScrollController');
-      scrollCtrl && scrollCtrl.resize();
-
       if (target && self.positionView) {
         self.positionView(target, modalEl);
         // set up a listener for in case the window size changes
@@ -2471,10 +2465,6 @@ function($rootScope, $ionicBody, $compile, $timeout, $ionicPlatform, $ionicTempl
     hide: function() {
       var self = this;
       var modalEl = jqLite(self.modalEl);
-
-      // on iOS, clicks will sometimes bleed through/ghost click on underlying
-      // elements
-      $ionicClickBlock.show(600);
 
       self.el.classList.remove('active');
       modalEl.addClass('ng-leave');
@@ -2954,9 +2944,8 @@ function($ionicModal, $ionicPosition, $document, $window) {
     var buttonOffset = $ionicPosition.offset(targetEle);
     var popoverWidth = popoverEle.prop('offsetWidth');
     var popoverHeight = popoverEle.prop('offsetHeight');
-    // Use innerWidth and innerHeight, because clientWidth and clientHeight
-    // doesn't work consistently for body on all platforms
-    var bodyWidth = $window.innerWidth;
+    var bodyWidth = $document[0].body.clientWidth;
+    // clientHeight doesn't work on all platforms for body
     var bodyHeight = $window.innerHeight;
 
     var popoverCSS = {
@@ -4966,31 +4955,10 @@ function($scope, $element, $attrs, $q, $ionicConfig, $ionicHistory) {
 
 
   self.updateBackButton = function() {
-    var ele;
     if ((isBackShown && isNavBackShown && isBackEnabled) !== isBackElementShown) {
       isBackElementShown = isBackShown && isNavBackShown && isBackEnabled;
-      ele = getEle(BACK_BUTTON);
-      ele && ele.classList[ isBackElementShown ? 'remove' : 'add' ](HIDE);
-    }
-
-    if (isBackEnabled) {
-      ele = ele || getEle(BACK_BUTTON);
-      if (ele) {
-        if (self.backButtonIcon !== $ionicConfig.backButton.icon()) {
-          ele = getEle(BACK_BUTTON + ' .icon');
-          if (ele) {
-            self.backButtonIcon = $ionicConfig.backButton.icon();
-            ele.className = 'icon ' + self.backButtonIcon;
-          }
-        }
-
-        if (self.backButtonText !== $ionicConfig.backButton.text()) {
-          ele = getEle(BACK_BUTTON + ' .back-text');
-          if (ele) {
-            ele.textContent = self.backButtonText = $ionicConfig.backButton.text();
-          }
-        }
-      }
+      var backBtnEle = getEle(BACK_BUTTON);
+      backBtnEle && backBtnEle.classList[ isBackElementShown ? 'remove' : 'add' ](HIDE);
     }
   };
 
@@ -5561,6 +5529,7 @@ function($scope, $element, $attrs, $compile, $timeout, $ionicNavBarDelegate, $io
     var lastViewItemEle = {};
     var leftButtonsEle, rightButtonsEle;
 
+    //navEle[BACK_BUTTON] = self.createBackButtonElement(headerBarEle);
     navEle[BACK_BUTTON] = createNavElement(BACK_BUTTON);
     navEle[BACK_BUTTON] && headerBarEle.append(navEle[BACK_BUTTON]);
 
@@ -5584,8 +5553,6 @@ function($scope, $element, $attrs, $compile, $timeout, $ionicNavBarDelegate, $io
     $element.append($compile(containerEle)($scope.$new()));
 
     var headerBarCtrl = headerBarEle.data('$ionHeaderBarController');
-    headerBarCtrl.backButtonIcon = $ionicConfig.backButton.icon();
-    headerBarCtrl.backButtonText = $ionicConfig.backButton.text();
 
     var headerBarInstance = {
       isActive: isActive,
@@ -5779,24 +5746,13 @@ function($scope, $element, $attrs, $compile, $timeout, $ionicNavBarDelegate, $io
         navBarTransition.direction = 'back';
         navBarTransition.run(step);
       },
-      cancel: function(shouldAnimate, speed, cancelData) {
+      cancel: function(shouldAnimate, speed) {
         navSwipeAttr(speed);
         navBarAttr(leavingHeaderBar, 'active');
         navBarAttr(enteringHeaderBar, 'cached');
         navBarTransition.shouldAnimate = shouldAnimate;
         navBarTransition.run(0);
         self.activeTransition = navBarTransition = null;
-
-        var runApply;
-        if (cancelData.showBar !== self.showBar()) {
-          self.showBar(cancelData.showBar);
-        }
-        if (cancelData.showBackButton !== self.showBackButton()) {
-          self.showBackButton(cancelData.showBackButton);
-        }
-        if (runApply) {
-          $scope.$apply();
-        }
       },
       complete: function(shouldAnimate, speed) {
         navSwipeAttr(speed);
@@ -5864,7 +5820,6 @@ function($scope, $element, $attrs, $compile, $timeout, $ionicNavBarDelegate, $io
   self.visibleBar = function(shouldShow) {
     if (shouldShow && !isVisible) {
       $element.removeClass(CSS_HIDE);
-      self.align();
     } else if (!shouldShow && isVisible) {
       $element.addClass(CSS_HIDE);
     }
@@ -5892,12 +5847,10 @@ function($scope, $element, $attrs, $compile, $timeout, $ionicNavBarDelegate, $io
    * to show.
    */
   self.showBackButton = function(shouldShow) {
-    if (arguments.length) {
-      for (var x = 0; x < headerBars.length; x++) {
-        headerBars[x].controller().showNavBack(!!shouldShow);
-      }
-      $scope.$isBackButtonShown = !!shouldShow;
+    for (var x = 0; x < headerBars.length; x++) {
+      headerBars[x].controller().showNavBack(!!shouldShow);
     }
+    $scope.$isBackButtonShown = !!shouldShow;
     return $scope.$isBackButtonShown;
   };
 
@@ -5909,12 +5862,7 @@ function($scope, $element, $attrs, $compile, $timeout, $ionicNavBarDelegate, $io
    */
   self.showActiveBackButton = function(shouldShow) {
     var headerBar = getOnScreenHeaderBar();
-    if (headerBar) {
-      if (arguments.length) {
-        return headerBar.controller().showBack(shouldShow);
-      }
-      return headerBar.controller().showBack();
-    }
+    headerBar && headerBar.controller().showBack(shouldShow);
   };
 
 
@@ -6308,25 +6256,13 @@ function($scope, $element, $attrs, $compile, $controller, $ionicNavBarDelegate, 
    */
   self.showBackButton = function(shouldShow) {
     var associatedNavBarCtrl = getAssociatedNavBarCtrl();
-    if (associatedNavBarCtrl) {
-      if (arguments.length) {
-        return associatedNavBarCtrl.showActiveBackButton(shouldShow);
-      }
-      return associatedNavBarCtrl.showActiveBackButton();
-    }
-    return true;
+    associatedNavBarCtrl && associatedNavBarCtrl.showActiveBackButton(shouldShow);
   };
 
 
   self.showBar = function(val) {
     var associatedNavBarCtrl = getAssociatedNavBarCtrl();
-    if (associatedNavBarCtrl) {
-      if (arguments.length) {
-        return associatedNavBarCtrl.showBar(val);
-      }
-      return associatedNavBarCtrl.showBar();
-    }
-    return true;
+    associatedNavBarCtrl && associatedNavBarCtrl.showBar(val);
   };
 
 
@@ -6351,7 +6287,6 @@ function($scope, $element, $attrs, $compile, $controller, $ionicNavBarDelegate, 
     var viewTransition, associatedNavBarCtrl, backView;
     var deregDragStart, deregDrag, deregRelease;
     var windowWidth, startDragX, dragPoints;
-    var cancelData = {};
 
     function onDragStart(ev) {
       if (!isPrimary) return;
@@ -6372,11 +6307,6 @@ function($scope, $element, $attrs, $compile, $controller, $ionicNavBarDelegate, 
       };
 
       dragPoints = [];
-
-      cancelData = {
-        showBar: self.showBar(),
-        showBackButton: self.showBackButton()
-      };
 
       var switcher = $ionicViewSwitcher.create(self, registerData, backView, $ionicHistory.currentView(), true, false);
       switcher.loadViewElements(registerData);
@@ -6434,18 +6364,16 @@ function($scope, $element, $attrs, $compile, $controller, $ionicNavBarDelegate, 
         disableAnimation = (releaseSwipeCompletion < 0.03 || releaseSwipeCompletion > 0.97);
 
         if (isSwipingRight && (releaseSwipeCompletion > 0.5 || velocity > 0.1)) {
-          // complete view transition on release
           var speed = (velocity > 0.5 || velocity < 0.05 || releaseX > windowWidth - 45) ? 'fast' : 'slow';
           navSwipeAttr(disableAnimation ? '' : speed);
           backView.go();
           associatedNavBarCtrl && associatedNavBarCtrl.activeTransition && associatedNavBarCtrl.activeTransition.complete(!disableAnimation, speed);
 
         } else {
-          // cancel view transition on release
           navSwipeAttr(disableAnimation ? '' : 'fast');
           disableRenderStartViewId = null;
           viewTransition.cancel(!disableAnimation);
-          associatedNavBarCtrl && associatedNavBarCtrl.activeTransition && associatedNavBarCtrl.activeTransition.cancel(!disableAnimation, 'fast', cancelData);
+          associatedNavBarCtrl && associatedNavBarCtrl.activeTransition && associatedNavBarCtrl.activeTransition.cancel(!disableAnimation, 'fast');
           disableAnimation = null;
         }
 
@@ -6746,8 +6674,8 @@ IonicModule
       scrollParent = $element.parent().parent()[0];
       scrollChild = $element.parent()[0];
 
-      if (!scrollParent || !scrollParent.classList.contains('ionic-scroll') ||
-        !scrollChild || !scrollChild.classList.contains('scroll')) {
+      if (!scrollParent.classList.contains('ionic-scroll') ||
+          !scrollChild.classList.contains('scroll')) {
         throw new Error('Refresher must be immediate child of ion-content or ion-scroll');
       }
 
@@ -6850,19 +6778,10 @@ function($scope,
   self.__timeout = $timeout;
 
   self._scrollViewOptions = scrollViewOptions; //for testing
-  self.isNative = function() {
-    return !!scrollViewOptions.nativeScrolling;
-  };
 
   var element = self.element = scrollViewOptions.el;
   var $element = self.$element = jqLite(element);
-  var scrollView;
-  if (self.isNative()) {
-    scrollView = self.scrollView = new ionic.views.ScrollNative(scrollViewOptions);
-  } else {
-    scrollView = self.scrollView = new ionic.views.Scroll(scrollViewOptions);
-  }
-
+  var scrollView = self.scrollView = new ionic.views.Scroll(scrollViewOptions);
 
   //Attach self to element as a controller so other directives can require this controller
   //through `require: '$ionicScroll'
@@ -8413,10 +8332,7 @@ function CollectionRepeatDirective($ionicCollectionManager, $parse, $window, $$r
     scrollCtrl.$element.on('scroll.resize', refreshDimensions);
 
     angular.element($window).on('resize', onResize);
-    var unlistenToExposeAside = $rootScope.$on('$ionicExposeAside', ionic.animationFrameThrottle(function() {
-      scrollCtrl.scrollView.resize();
-      onResize();
-    }));
+    var unlistenToExposeAside = $rootScope.$on('$ionicExposeAside', onResize);
     $timeout(refreshDimensions, 0, false);
 
     function onResize() {
@@ -8492,7 +8408,7 @@ function CollectionRepeatDirective($ionicCollectionManager, $parse, $window, $$r
         renderBuffer: renderBuffer,
         scope: scope,
         scrollView: scrollCtrl.scrollView,
-        transclude: transclude
+        transclude: transclude,
       }));
     }
 
@@ -8536,15 +8452,16 @@ function CollectionRepeatDirective($ionicCollectionManager, $parse, $window, $$r
       //4) Dynamic Mode
       //  - The user provides a dynamic expression for the width or height.  This is re-evaluated
       //    for every item, stored on the `.getValue()` field.
-      if (heightExpr) {
-        parseDimensionAttr(heightExpr, heightData);
+      if (!heightExpr && !widthExpr) {
+        heightData.computed = widthData.computed = true;
       } else {
-        heightData.computed = true;
-      }
-      if (widthExpr) {
+        if (heightExpr) {
+          parseDimensionAttr(heightExpr, heightData);
+        } else {
+          heightData.computed = true;
+        }
+        if (!widthExpr) widthExpr = '"100%"';
         parseDimensionAttr(widthExpr, widthData);
-      } else {
-        widthData.computed = true;
       }
     }
 
@@ -8664,7 +8581,7 @@ function CollectionRepeatDirective($ionicCollectionManager, $parse, $window, $$r
 
 RepeatManagerFactory.$inject = ['$rootScope', '$window', '$$rAF'];
 function RepeatManagerFactory($rootScope, $window, $$rAF) {
-  var EMPTY_DIMENSION = { primaryPos: 0, secondaryPos: 0, primarySize: 0, secondarySize: 0, rowPrimarySize: 0 };
+  var EMPTY_DIMENSION = { primaryPos: 0, secondaryPos: 0, primarySize: 0, secondarySize: 0 };
 
   return function RepeatController(options) {
     var afterItemsNode = options.afterItemsNode;
@@ -8752,7 +8669,6 @@ function RepeatManagerFactory($rootScope, $window, $$rAF) {
     scrollView.__$callback = scrollView.__callback;
     scrollView.__callback = function(transformLeft, transformTop, zoom, wasResize) {
       var scrollValue = view.getScrollValue();
-      if(window.d)dump('_-callback render', scrollValue, view.scrollPrimarySize + renderAfterBoundary);
       if (renderStartIndex === -1 ||
           scrollValue + view.scrollPrimarySize > renderAfterBoundary ||
           scrollValue < renderBeforeBoundary) {
@@ -8912,7 +8828,6 @@ function RepeatManagerFactory($rootScope, $window, $$rAF) {
         if (item.secondarySize !== dim.secondarySize || item.primarySize !== dim.primarySize) {
           item.node.style.cssText = item.node.style.cssText
             .replace(WIDTH_HEIGHT_REGEX, WIDTH_HEIGHT_TEMPLATE_STR
-              //TODO fix item.primarySize + 1 hack
               .replace(PRIMARY, (item.primarySize = dim.primarySize) + 1)
               .replace(SECONDARY, (item.secondarySize = dim.secondarySize))
             );
@@ -9130,22 +9045,14 @@ function RepeatManagerFactory($rootScope, $window, $$rAF) {
           dim.secondaryPos = prevDimension.secondaryPos + prevDimension.secondarySize;
 
           if (i === 0 || dim.secondaryPos + dim.secondarySize > self.scrollSecondarySize) {
+            dim.rowStartIndex = i;
             dim.secondaryPos = 0;
             dim.primarySize = self.getItemPrimarySize(i, data[i]);
-            dim.primaryPos = prevDimension.primaryPos + prevDimension.rowPrimarySize;
-
-            dim.rowStartIndex = i;
-            dim.rowPrimarySize = dim.primarySize;
+            dim.primaryPos = prevDimension.primaryPos + prevDimension.primarySize;
           } else {
-            dim.primarySize = self.getItemPrimarySize(i, data[i]);
-            dim.primaryPos = prevDimension.primaryPos;
             dim.rowStartIndex = prevDimension.rowStartIndex;
-
-            dimensions[dim.rowStartIndex].rowPrimarySize = dim.rowPrimarySize = Math.max(
-              dimensions[dim.rowStartIndex].rowPrimarySize,
-              dim.primarySize
-            );
-            dim.rowPrimarySize = Math.max(dim.primarySize, dim.rowPrimarySize);
+            dim.primarySize = prevDimension.primarySize;
+            dim.primaryPos = prevDimension.primaryPos;
           }
         }
       }
@@ -9209,7 +9116,7 @@ function RepeatManagerFactory($rootScope, $window, $$rAF) {
         // scrolling down
         } else if (scrollValue >= oldScrollValue) {
           for (i = oldRenderStartIndex, len = data.length; i < len; i++) {
-            if ((dim = this.getDimensions(i)) && dim.primaryPos + dim.rowPrimarySize >= scrollValue) {
+            if ((dim = this.getDimensions(i)) && dim.primaryPos + dim.primarySize >= scrollValue) {
               break;
             }
           }
@@ -9230,7 +9137,7 @@ function RepeatManagerFactory($rootScope, $window, $$rAF) {
         // -- Calculate renderEndIndex
         var lastRowDim;
         for (i = renderStartIndex + 1, len = data.length; i < len; i++) {
-          if ((dim = this.getDimensions(i)) && dim.primaryPos + dim.rowPrimarySize > scrollValueEnd) {
+          if ((dim = this.getDimensions(i)) && dim.primaryPos + dim.primarySize > scrollValueEnd) {
 
             // Go all the way to the end of the row if we're in a grid
             if (isGridView) {
@@ -9246,7 +9153,7 @@ function RepeatManagerFactory($rootScope, $window, $$rAF) {
 
         renderEndIndex = Math.min(i, data.length - 1);
         renderAfterBoundary = renderEndIndex !== -1 ?
-          ((dim = this.getDimensions(renderEndIndex)).primaryPos + (dim.rowPrimarySize || dim.primarySize)) :
+          ((dim = this.getDimensions(renderEndIndex)).primaryPos + dim.primarySize) :
           -1;
 
         oldScrollValue = scrollValue;
@@ -9258,6 +9165,8 @@ function RepeatManagerFactory($rootScope, $window, $$rAF) {
   };
 
 }
+
+
 
 /**
  * @ngdoc directive
@@ -9370,55 +9279,37 @@ function($timeout, $controller, $ionicBind, $ionicConfig) {
 
         if ($attr.scroll === "false") {
           //do nothing
+        } else if (attr.overflowScroll === "true" || !$ionicConfig.scrolling.jsScrolling()) {
+          // use native scrolling
+          $element.addClass('overflow-scroll');
         } else {
-          var scrollViewOptions = {};
-
-          if (attr.overflowScroll === "true" || !$ionicConfig.scrolling.jsScrolling()) {
-            // use native scrolling
-            $element.addClass('overflow-scroll');
-
-            scrollViewOptions = {
-              el: $element[0],
-              delegateHandle: attr.delegateHandle,
-              startX: $scope.$eval($scope.startX) || 0,
-              startY: $scope.$eval($scope.startY) || 0,
-              nativeScrolling:true
-            };
-
-          } else {
-            // Use JS scrolling
-            scrollViewOptions = {
-              el: $element[0],
-              delegateHandle: attr.delegateHandle,
-              locking: (attr.locking || 'true') === 'true',
-              bouncing: $scope.$eval($scope.hasBouncing),
-              startX: $scope.$eval($scope.startX) || 0,
-              startY: $scope.$eval($scope.startY) || 0,
-              scrollbarX: $scope.$eval($scope.scrollbarX) !== false,
-              scrollbarY: $scope.$eval($scope.scrollbarY) !== false,
-              scrollingX: $scope.direction.indexOf('x') >= 0,
-              scrollingY: $scope.direction.indexOf('y') >= 0,
-              scrollEventInterval: parseInt($scope.scrollEventInterval, 10) || 10,
-              scrollingComplete: function() {
-                $scope.$onScrollComplete({
-                  scrollTop: this.__scrollTop,
-                  scrollLeft: this.__scrollLeft
-                });
-              }
-            };
-          }
-
-          // init scroll controller with appropriate options
+          var scrollViewOptions = {
+            el: $element[0],
+            delegateHandle: attr.delegateHandle,
+            locking: (attr.locking || 'true') === 'true',
+            bouncing: $scope.$eval($scope.hasBouncing),
+            startX: $scope.$eval($scope.startX) || 0,
+            startY: $scope.$eval($scope.startY) || 0,
+            scrollbarX: $scope.$eval($scope.scrollbarX) !== false,
+            scrollbarY: $scope.$eval($scope.scrollbarY) !== false,
+            scrollingX: $scope.direction.indexOf('x') >= 0,
+            scrollingY: $scope.direction.indexOf('y') >= 0,
+            scrollEventInterval: parseInt($scope.scrollEventInterval, 10) || 10,
+            scrollingComplete: function() {
+              $scope.$onScrollComplete({
+                scrollTop: this.__scrollTop,
+                scrollLeft: this.__scrollLeft
+              });
+            }
+          };
           $controller('$ionicScroll', {
             $scope: $scope,
             scrollViewOptions: scrollViewOptions
           });
 
           $scope.$on('$destroy', function() {
-            if (scrollViewOptions) {
-              scrollViewOptions.scrollingComplete = noop;
-              delete scrollViewOptions.el;
-            }
+            scrollViewOptions.scrollingComplete = noop;
+            delete scrollViewOptions.el;
             innerElement = null;
             $element = null;
             attr.$$element = null;
@@ -10035,14 +9926,10 @@ IonicModule
     link: function($scope, $element, $attrs, ctrls) {
       var infiniteScrollCtrl = ctrls[1];
       var scrollCtrl = infiniteScrollCtrl.scrollCtrl = ctrls[0];
-      var jsScrolling = infiniteScrollCtrl.jsScrolling = !scrollCtrl.isNative();
-
+      var jsScrolling = infiniteScrollCtrl.jsScrolling = !!scrollCtrl;
       // if this view is not beneath a scrollCtrl, it can't be injected, proceed w/ native scrolling
       if (jsScrolling) {
         infiniteScrollCtrl.scrollView = scrollCtrl.scrollView;
-        $scope.scrollingType = 'js-scrolling';
-        //bind to JS scroll events
-        scrollCtrl.$element.on('scroll', infiniteScrollCtrl.checkBounds);
       } else {
         // grabbing the scrollable element, to determine dimensions, and current scroll pos
         var scrollEl = ionic.DomUtil.getParentOrSelfWithClass($element[0].parentNode,'overflow-scroll');
@@ -10051,10 +9938,14 @@ IonicModule
         if (!scrollEl) {
           throw 'Infinite scroll must be used inside a scrollable div';
         }
-        //bind to native scroll events
+      }
+      //bind to appropriate scroll event
+      if (jsScrolling) {
+        $scope.scrollingType = 'js-scrolling';
+        scrollCtrl.$element.on('scroll', infiniteScrollCtrl.checkBounds);
+      } else {
         infiniteScrollCtrl.scrollEl.addEventListener('scroll', infiniteScrollCtrl.checkBounds);
       }
-
       // Optionally check bounds on start after scrollView is fully rendered
       var doImmediateCheck = isDefined($attrs.immediateCheck) ? $scope.$eval($attrs.immediateCheck) : true;
       if (doImmediateCheck) {
@@ -11633,7 +11524,6 @@ IonicModule
  * of the refresher.
  * @param {expression=} on-pulling Called when the user starts to pull down
  * on the refresher.
- * @param {string=} pulling-text The text to display while the user is pulling down.
  * @param {string=} pulling-icon The icon to display while the user is pulling down.
  * Default: 'ion-android-arrow-down'.
  * @param {string=} spinner The {@link ionic.directive:ionSpinner} icon to display
@@ -11673,11 +11563,10 @@ IonicModule
       // JS Scrolling uses the scroll controller
       var scrollCtrl = ctrls[0],
           refresherCtrl = ctrls[1];
-      if (!scrollCtrl || scrollCtrl.isNative()) {
-        // Kick off native scrolling
-        refresherCtrl.init();
-      } else {
+
+      if (!!scrollCtrl) {
         $element[0].classList.add('js-scrolling');
+
         scrollCtrl._setRefresher(
           $scope,
           $element[0],
@@ -11689,6 +11578,10 @@ IonicModule
             scrollCtrl.scrollView.finishPullToRefresh();
           });
         });
+
+      } else {
+        // Kick off native scrolling
+        refresherCtrl.init();
       }
 
     }
@@ -12058,9 +11951,6 @@ function($timeout, $ionicGesture, $window) {
 
         // add gesture handlers
         var gestureOpts = { stop_browser_behavior: false };
-        if (ionic.DomUtil.getParentOrSelfWithClass($element[0],'overflow-scroll')) {
-          gestureOpts.prevent_default_directions = ['left','right'];
-        }
         var contentTapGesture = $ionicGesture.on('tap', onContentTap, $element, gestureOpts);
         var dragRightGesture = $ionicGesture.on('dragright', onDragX, $element, gestureOpts);
         var dragLeftGesture = $ionicGesture.on('dragleft', onDragX, $element, gestureOpts);
@@ -12227,7 +12117,7 @@ IonicModule
  * @param {boolean=} does-continue Whether the slide box should loop.
  * @param {boolean=} auto-play Whether the slide box should automatically slide. Default true if does-continue is true.
  * @param {number=} slide-interval How many milliseconds to wait to change slides (if does-continue is true). Defaults to 4000.
- * @param {boolean=} show-pager Whether a pager should be shown for this slide box. Accepts expressions via `show-pager="{{shouldShow()}}"`. Defaults to true.
+ * @param {boolean=} show-pager Whether a pager should be shown for this slide box. Accepts expressions via `show-pager="{{shouldShow()}}"`.
  * @param {expression=} pager-click Expression to call when a pager is clicked (if show-pager is true). Is passed the 'index' variable.
  * @param {expression=} on-slide-changed Expression called whenever the slide is changed.  Is passed an '$index' variable.
  * @param {expression=} active-slide Model to bind the current slide to.
@@ -12238,8 +12128,7 @@ IonicModule
   '$compile',
   '$ionicSlideBoxDelegate',
   '$ionicHistory',
-  '$ionicScrollDelegate',
-function($timeout, $compile, $ionicSlideBoxDelegate, $ionicHistory, $ionicScrollDelegate) {
+function($timeout, $compile, $ionicSlideBoxDelegate, $ionicHistory) {
   return {
     restrict: 'E',
     replace: true,
@@ -12279,24 +12168,8 @@ function($timeout, $compile, $ionicSlideBoxDelegate, $ionicHistory, $ionicScroll
           $scope.activeSlide = slideIndex;
           // Try to trigger a digest
           $timeout(function() {});
-        },
-        onDrag: function() {
-          freezeAllScrolls(true);
-        },
-        onDragEnd: function() {
-          freezeAllScrolls(false);
         }
       });
-
-      function freezeAllScrolls(shouldFreeze) {
-        if (shouldFreeze && !_this.isScrollFreeze) {
-          $ionicScrollDelegate.freezeAllScrolls(shouldFreeze);
-
-        } else if (!shouldFreeze && _this.isScrollFreeze) {
-          $ionicScrollDelegate.freezeAllScrolls(false);
-        }
-        _this.isScrollFreeze = shouldFreeze;
-      }
 
       slider.enableSlide($scope.$eval($attrs.disableScroll) !== true);
 
@@ -12347,12 +12220,6 @@ function($timeout, $compile, $ionicSlideBoxDelegate, $ionicHistory, $ionicScroll
     '</div>',
 
     link: function($scope, $element, $attr, slideBoxCtrl) {
-      // if showPager is undefined, show the pager
-      if (!isDefined($attr.showPager)) {
-        $scope.showPager = true;
-        getPager().toggleClass('hide', !true);
-      }
-
       $attr.$observe('showPager', function(show) {
         show = $scope.$eval(show);
         getPager().toggleClass('hide', !show);

@@ -10,9 +10,11 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova'])
   $ionicPlatform.ready(function() {
     // Hide the accessory bar by default (remove this to show the accessory bar above the keyboard
     // for form inputs)
+    /*/
     if (window.cordova && window.cordova.plugins.Keyboard) {
       cordova.plugins.Keyboard.hideKeyboardAccessoryBar(true);
     }
+    */
     if (window.StatusBar) {
       // org.apache.cordova.statusbar required
       StatusBar.styleDefault();
@@ -20,10 +22,15 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova'])
   });
 })
 
-.config(function($stateProvider, $urlRouterProvider, $httpProvider) {
+.config(function($compileProvider, $stateProvider, $urlRouterProvider, $httpProvider) {
   
    $httpProvider.defaults.withCredentials = true;
    $httpProvider.interceptors.push('authInterceptorService');
+
+   $compileProvider.aHrefSanitizationWhitelist(/^\s*(https?|ftp|mailto|file|ghttps?|ms-appx|x-wmapp0):/);
+   // // Use $compileProvider.urlSanitizationWhitelist(...) for Angular 1.2
+   $compileProvider.imgSrcSanitizationWhitelist(/^\s*(https?|ftp|file|ms-appx|x-wmapp0):|data:image\//);
+
 
 
   $stateProvider
@@ -103,5 +110,5 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova'])
     }
   });
   // if none of the above states are matched, use this as the fallback
-  $urlRouterProvider.otherwise('/app/playlists');
+  $urlRouterProvider.otherwise('/app/sigin');
 });

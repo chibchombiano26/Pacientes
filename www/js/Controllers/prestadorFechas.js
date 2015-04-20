@@ -13,21 +13,33 @@ angular.module('starter')
     var options = {
         date: new Date(),
         mode: 'date', // or 'time'
-        minDate: new Date() - 10000,
+        minDate: new Date(),
         allowOldDates: true,
         allowFutureDates: false,
-        doneButtonLabel: 'DONE',
+        doneButtonLabel: 'Aceptar',
         doneButtonColor: '#F2F3F4',
-        cancelButtonLabel: 'CANCEL',
+        cancelButtonLabel: 'CANCELAR',
         cancelButtonColor: '#000000'
       };
 
     $scope.$on('$ionicView.afterEnter', function(){
         
-         $cordovaDatePicker.show(options).then(function(date){
-            $scope.datosCita.fecha = date;
-            console.log(date);
-        });
+        var deviceInformation = ionic.Platform.device();
+        var isWebView = ionic.Platform.isWebView();
+        var isIPad = ionic.Platform.isIPad();
+        var isIOS = ionic.Platform.isIOS();
+        var isAndroid = ionic.Platform.isAndroid();
+        var isWindowsPhone = ionic.Platform.isWindowsPhone();
+
+        var currentPlatform = ionic.Platform.platform();
+        var currentPlatformVersion = ionic.Platform.version();
+
+        if(!isWindowsPhone){
+             $cordovaDatePicker.show(options).then(function(date){
+                $scope.datosCita.fecha = date;
+                console.log(date);
+            });
+        }
 
     });
     
