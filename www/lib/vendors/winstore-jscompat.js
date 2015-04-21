@@ -1,4 +1,10 @@
-﻿// Copyright (c) Microsoft Open Technologies, Inc.  All rights reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
+﻿/*
+JavaScript Dynamic Content shim for Windows Store apps.
+winstore-jscompat.js
+
+Microsoft grants you the right to use these script files for the sole purpose of either: (i) interacting through your browser with the Microsoft website, subject to the website’s terms of use; or (ii) using the files as included with a Microsoft product subject to that product’s license terms. Microsoft reserves all other rights to the files not expressly granted by Microsoft, whether by implication, estoppel or otherwise. The notices and licenses below are for informational purposes only.
+*/
+// Copyright (c) Microsoft Open Technologies, Inc.  All rights reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 // JavaScript Dynamic Content shim for Windows Store apps
 (function () {
 
@@ -13,7 +19,6 @@
         var HTMLElement_insertAdjacentHTMLPropertyDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "insertAdjacentHTML");
         var Node_get_attributes = Object.getOwnPropertyDescriptor(Node.prototype, "attributes").get;
         var Node_get_childNodes = Object.getOwnPropertyDescriptor(Node.prototype, "childNodes").get;
-        var detectionDiv = document.createElement("div");
 
         function getAttributes(element) {
             return Node_get_attributes.call(element);
@@ -44,20 +49,8 @@
         function insertAdjacentHTML(element, position, html) {
             HTMLElement_insertAdjacentHTMLPropertyDescriptor.value.call(element, position, html);
         }
-        
-        function inUnsafeMode() {
-            var isUnsafe = true;
-            try {
-                detectionDiv.innerHTML = "<test/>";
-            }
-            catch (ex) {
-                isUnsafe = false;
-            }
-            
-            return isUnsafe;
-        }
 
-        function cleanse(html, targetElement) {
+        function cleanse(html) {
             var cleaner = document.implementation.createHTMLDocument("cleaner");
             empty(cleaner.documentElement);
             MSApp.execUnsafeLocalFunction(function () {
@@ -120,37 +113,19 @@
             }
             cleanseAttributes(cleaner.documentElement);
 
-            var cleanedNodes = [];
-
-            if (targetElement.tagName === 'HTML') {
-                cleanedNodes = Array.prototype.slice.call(document.adoptNode(cleaner.documentElement).childNodes);
-            } else {
-                if (cleaner.head) {
-                    cleanedNodes = cleanedNodes.concat(Array.prototype.slice.call(document.adoptNode(cleaner.head).childNodes));
-                }
-                if (cleaner.body) {
-                    cleanedNodes = cleanedNodes.concat(Array.prototype.slice.call(document.adoptNode(cleaner.body).childNodes));
-                }  
-            }
-
-            return cleanedNodes;
+            return Array.prototype.slice.call(document.adoptNode(cleaner.documentElement).childNodes);
         }
 
         function cleansePropertySetter(property, setter) {
             var propertyDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, property);
-            var originalSetter = propertyDescriptor.set;
             Object.defineProperty(HTMLElement.prototype, property, {
                 get: propertyDescriptor.get,
                 set: function (value) {
-                    if(window.WinJS && window.WinJS._execUnsafe && inUnsafeMode()) {
-                        originalSetter.call(this, value);
-                    } else {
-                        var that = this;
-                        var nodes = cleanse(value, that);
-                        MSApp.execUnsafeLocalFunction(function () {
-                            setter(propertyDescriptor, that, nodes);
-                        });
-                    }
+                    var that = this;
+                    var nodes = cleanse(value);
+                    MSApp.execUnsafeLocalFunction(function () {
+                        setter(propertyDescriptor, that, nodes);
+                    });
                 },
                 enumerable: propertyDescriptor.enumerable,
                 configurable: propertyDescriptor.configurable,
