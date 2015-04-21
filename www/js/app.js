@@ -27,6 +27,7 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova'])
    $httpProvider.defaults.withCredentials = true;
    $httpProvider.interceptors.push('authInterceptorService');
 
+    
    $compileProvider.aHrefSanitizationWhitelist(/^\s*(https?|ftp|mailto|file|ghttps?|ms-appx|x-wmapp0):/);
    // // Use $compileProvider.urlSanitizationWhitelist(...) for Angular 1.2
    $compileProvider.imgSrcSanitizationWhitelist(/^\s*(https?|ftp|file|ms-appx|x-wmapp0):|data:image\//);
