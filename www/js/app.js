@@ -4,7 +4,7 @@
 // 'starter' is the name of this angular module example (also set in a <body> attribute in index.html)
 // the 2nd parameter is an array of 'requires'
 // 'starter.controllers' is found in controllers.js
-angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova'])
+angular.module('starter', ['ionic', 'ngCordova'])
 
 .run(function($ionicPlatform) {
   $ionicPlatform.ready(function() {
@@ -43,15 +43,7 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova'])
     controller: 'AppCtrl'
   })
 
-  .state('app.search', {
-    url: "/search",
-    views: {
-      'menuContent': {
-        templateUrl: "templates/search.html"
-      }
-    }
-  })
-
+ 
   .state('app.citas', {
     url: "/citas",
     views: {
@@ -60,26 +52,17 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova'])
         controller : "prestadorCtrl"
       }
     }
-  })
+  })  
 
-  .state('app.sigin', {
-    url: "/sigin",
-    views: {
-        'menuContent': {
-            templateUrl: "templates/views/Sign/SignIn.html",
-        }       
-        }
-    })
+.state('sigin', {
+  url: '/sigin',
+  templateUrl: 'templates/views/Sign/SignIn.html'  
+})
 
-
-.state('app.signup', {
-    url: "/signup",
-    views: {
-        'menuContent': {
-            templateUrl: "templates/views/Sign/SignUp.html",            
-        }       
-        }
-    })
+.state('signup', {
+  url: '/signup',
+  templateUrl: 'templates/views/Sign/SignUp.html'  
+})
 
 .state('app.prestadorFecha', {
     url: "/prestadorFecha/:prestadorId",
@@ -89,27 +72,7 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova'])
             controller : 'prestadorFechasCtrl',
         }       
         }
-    })
-  
-    .state('app.playlists', {
-      url: "/playlists",
-      views: {
-        'menuContent': {
-          templateUrl: "templates/playlists.html",
-          controller: 'PlaylistsCtrl'
-        }
-      }
-    })
-
-  .state('app.single', {
-    url: "/playlists/:playlistId",
-    views: {
-      'menuContent': {
-        templateUrl: "templates/playlist.html",
-        controller: 'PlaylistCtrl'
-      }
-    }
-  });
+    });
   // if none of the above states are matched, use this as the fallback
-  $urlRouterProvider.otherwise('/app/sigin');
+  $urlRouterProvider.otherwise('/sigin');
 });
