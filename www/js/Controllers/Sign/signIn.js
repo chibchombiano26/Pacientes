@@ -1,7 +1,7 @@
 angular.module('starter')
 .controller('signInController', ['$scope','signFactoryService','$ionicLoading','$state', 'users', 'pushFactory',
 	function ($scope, signFactoryService, $ionicLoading, $state, users, pushFactory) {
-	
+	var isIE = /*@cc_on!@*/false || !!document.documentMode;
 	$scope.loginData= {};
 	var usuario = users.getCurrentUser();
 
@@ -21,10 +21,15 @@ angular.module('starter')
 	}
 
 	function success(data){
+
+		if(isIE){
+			window.external.notify("Ingreso," + $scope.loginData.username + "," + $scope.loginData.password);
+		}
+		
 		console.log(data);
 		$ionicLoading.hide();
 		$state.go("app.citas");
-		pushFactory.registerAndroid();
+		pushFactory.registerAndroid();		
 	}
 
 	function error(data){
